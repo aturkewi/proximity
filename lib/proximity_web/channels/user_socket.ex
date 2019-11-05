@@ -1,6 +1,7 @@
 defmodule ProximityWeb.UserSocket do
   use Phoenix.Socket
 
+  channel "call", ProximityWeb.CallChannel
   ## Channels
   # channel "room:*", ProximityWeb.RoomChannel
 

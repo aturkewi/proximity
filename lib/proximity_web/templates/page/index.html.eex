@@ -1,3 +1,5 @@
+<script src="//cdn.temasys.com.sg/adapterjs/0.10.x/adapter.debug.js"></script>
+
 <div>
   <video id="localVideo" autoplay></video>
   <video id="remoteVideo" autoplay></video>
