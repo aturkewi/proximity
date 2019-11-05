@@ -63,6 +63,7 @@ function setupPeerConnection() {
   peerConnection.onicecandidate = gotLocalIceCandidate;
   peerConnection.onaddstream = gotRemoteStream;
   peerConnection.addStream(localStream);
+  console.log(peerConnection)
   console.log("Added localStream to localPeerConnection");
 }
 
