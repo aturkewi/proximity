@@ -15,14 +15,19 @@ import socket from "./socket"
 
 let channel = socket.channel("call", {})
 channel.join()
-  .receive("ok", resp => { console.log("Joined successfully", resp) })
-  .receive("error", resp => { console.log("Unable to join", resp) })
+  .receive("ok", resp => {
+    console.log("Joined successfully", resp)
+  })
+  .receive("error", resp => {
+    console.log("Unable to join", resp)
+  })
+
+channel.push("here")
 
 let localStream
-let peerConnections = []
+let peerConnections = {}
 let localVideo = document.getElementById("localVideo");
-let remoteVideo1 = document.getElementById("remoteVideo1");
-let remoteVideo2 = document.getElementById("remoteVideo2");
+let remoteVideo = document.getElementById("remoteVideo1");
 let connectButton = document.getElementById("connect");
 let callButton = document.getElementById("call");
 let hangupButton = document.getElementById("hangup");
@@ -33,18 +38,29 @@ connectButton.onclick = connect;
 callButton.onclick = call;
 hangupButton.onclick = hangup;
 
+function setupNewMemberHandler() {
+  channel.on("new_member", ({member_id}) => {
+    peerConnections[member_id] = setupPeerConnection()
+  })
+  channel.on("member_left", ({member_id}) => {
+    delete peerConnections[member_id]
+  })
+}
+
 function connect() {
   console.log("Requesting local stream");
-  navigator.getUserMedia({audio:true, video:true}, gotStream, error => {
-       console.log("getUserMedia error: ", error);
-   });
+  navigator.mediaDevices.getUserMedia({audio: true, video: true})
+    .then(gotStream)
+    .then(setupNewMemberHandler)
+    .catch(error => {
+      console.log("getUserMedia error: ", error);
+    });
 }
 
 function gotStream(stream) {
-   console.log("Received local stream");
-   localVideo.srcObject = stream
-   localStream = stream;
-   setupPeerConnection();
+  console.log("Received local stream");
+  localVideo.srcObject = stream
+  localStream = stream;
 }
 
 function setupPeerConnection() {
@@ -68,32 +84,41 @@ function setupPeerConnection() {
   console.log(peerConnection)
   console.log("Added localStream to localPeerConnection");
 
-  peerConnections.push(peerConnection)
+  return peerConnection
 }
 
 function call() {
   callButton.disabled = true;
   console.log("Starting call");
-  peerConnections.forEach(peerConnection => {
+  Object.values(peerConnections).forEach(peerConnection => {
     peerConnection.createOffer((description) => {
+      debugger
       gotLocalDescription(peerConnection, description)
     }, handleError)
   })
 }
 
-function gotLocalDescription(peerConnection, description){
+function gotLocalDescription(peerConnection, description) {
   peerConnection.setLocalDescription(description, () => {
-      channel.push("message", { body: JSON.stringify({
-              "sdp": peerConnection.localDescription
-          })});
-      }, handleError);
+    channel.push("message", {
+      body: JSON.stringify({
+        "sdp": peerConnection.localDescription
+      })
+    });
+  }, handleError);
   console.log("Offer from localPeerConnection: \n" + description.sdp);
 }
 
-function gotRemoteDescription(description){
+function gotRemoteDescription(description) {
   console.log("Answer from remotePeerConnection: \n" + description.sdp);
+  if (!peerConnections[description.member_id]) {
+    peerConnections[description.member_id] = setupPeerConnection()
+  }
+  let peerConnection = peerConnections[description.member_id];
   peerConnection.setRemoteDescription(new RTCSessionDescription(description.sdp));
-  peerConnection.createAnswer(gotLocalDescription, handleError);
+  peerConnection.createAnswer((description) => {
+      gotLocalDescription(peerConnection, description)
+    }, handleError);
 }
 
 function gotRemoteStream(event) {
@@ -104,16 +129,21 @@ function gotRemoteStream(event) {
 function gotLocalIceCandidate(event) {
   if (event.candidate) {
     console.log("Local ICE candidate: \n" + event.candidate.candidate);
-    channel.push("message", {body: JSON.stringify({
+    channel.push("message", {
+      body: JSON.stringify({
         "candidate": event.candidate
-    })});
+      })
+    });
   }
 }
 
 function gotRemoteIceCandidate(event) {
   callButton.disabled = true;
-  if (event.candidate) {
-    peerConnection.addIceCandidate(new RTCIceCandidate(event.candidate));
+  if (event.candidate && event.member_id) {
+    if (!peerConnections[event.member_id]) {
+      peerConnections[event.member_id] = setupPeerConnection()
+    }
+    peerConnections[event.member_id].addIceCandidate(new RTCIceCandidate(event.candidate));
     console.log("Remote ICE candidate: \n " + event.candidate.candidate);
   }
 }
@@ -130,9 +160,10 @@ channel.on("message", payload => {
 
 function hangup() {
   console.log("Ending call");
-  peerConnection.close();
+  channel.push("close_connection")
+  Object.values(peerConnections).forEach((pc) => pc.close());
   localVideo.src = null;
-  peerConnection = null;
+  peerConnections = {};
   hangupButton.disabled = true;
   connectButton.disabled = false;
   callButton.disabled = true;
