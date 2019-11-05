@@ -2,7 +2,12 @@
 
 <div>
   <video id="localVideo" autoplay></video>
-  <video id="remoteVideo" autoplay></video>
+
+  <video id="remoteVideo1" autoplay></video>
+  <video id="remoteVideo2" autoplay></video>
+  <div id="remoteVideoContainer">
+
+  </div>
 
   <button id="connect">Connect</button>
   <button id="call">Call</button>

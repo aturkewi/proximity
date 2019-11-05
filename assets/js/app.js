@@ -18,9 +18,11 @@ channel.join()
   .receive("ok", resp => { console.log("Joined successfully", resp) })
   .receive("error", resp => { console.log("Unable to join", resp) })
 
-let localStream, peerConnection;
+let localStream
+let peerConnections = []
 let localVideo = document.getElementById("localVideo");
-let remoteVideo = document.getElementById("remoteVideo");
+let remoteVideo1 = document.getElementById("remoteVideo1");
+let remoteVideo2 = document.getElementById("remoteVideo2");
 let connectButton = document.getElementById("connect");
 let callButton = document.getElementById("call");
 let hangupButton = document.getElementById("hangup");
@@ -58,22 +60,28 @@ function setupPeerConnection() {
   };
 
   // Will will need multiple peer connections
-  peerConnection = new RTCPeerConnection(servers);
+  const peerConnection = new RTCPeerConnection(servers);
   console.log("Created local peer connection");
   peerConnection.onicecandidate = gotLocalIceCandidate;
   peerConnection.onaddstream = gotRemoteStream;
   peerConnection.addStream(localStream);
   console.log(peerConnection)
   console.log("Added localStream to localPeerConnection");
+
+  peerConnections.push(peerConnection)
 }
 
 function call() {
   callButton.disabled = true;
   console.log("Starting call");
-  peerConnection.createOffer(gotLocalDescription, handleError);
+  peerConnections.forEach(peerConnection => {
+    peerConnection.createOffer((description) => {
+      gotLocalDescription(peerConnection, description)
+    }, handleError)
+  })
 }
 
-function gotLocalDescription(description){
+function gotLocalDescription(peerConnection, description){
   peerConnection.setLocalDescription(description, () => {
       channel.push("message", { body: JSON.stringify({
               "sdp": peerConnection.localDescription
