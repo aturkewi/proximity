@@ -8,8 +8,8 @@ defmodule ProximityWeb.CallChannel do
   end
 
   def handle_out("sdp_info", %{body: body, member_id: sender_member_id}, socket) do
-    %{"member_id" => member_id} = body = Jason.decode!(body)
-    if socket.assigns.member_id == member_id do
+    %{"member_id" => target_member_id} = body = Jason.decode!(body)
+    if socket.assigns.member_id == target_member_id do
       body = body
       |> Map.put("sender_member_id", sender_member_id)
       |> Jason.encode!
