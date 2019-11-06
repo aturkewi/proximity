@@ -29,7 +29,11 @@ defmodule ProximityWeb.CallChannel do
   end
 
   def handle_in("message", %{"body" => body}, socket) do
-    broadcast! socket, "message", %{body: body, member_id: socket.assigns.member_id}
+    body = body
+            |> Jason.decode!()
+            |> Map.put("member_id", socket.assigns.member_id)
+            |> Jason.encode!
+    broadcast! socket, "message", %{body: body}
     {:noreply, socket}
   end
 

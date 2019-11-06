@@ -13,48 +13,49 @@ import "phoenix_html"
 
 import socket from "./socket"
 
+navigator.mediaDevices.getUserMedia({audio: false, video: true})
+  .then(gotStream)
+  .then(resp => joinChannel())
+  .then(resp => setUpNewMembers())
+  .catch(error => {
+    console.log("getUserMedia error: ", error);
+  });
+
 let channel = socket.channel("call", {})
-channel.join()
-  .receive("ok", resp => {
-    console.log("Joined successfully", resp)
-  })
-  .receive("error", resp => {
-    console.log("Unable to join", resp)
-  })
 
-channel.push("here")
-
-let localStream
-let peerConnections = {}
+window.localStream = null
+window.peerConnections = {}
 let localVideo = document.getElementById("localVideo");
 let remoteVideo = document.getElementById("remoteVideo1");
 let connectButton = document.getElementById("connect");
 let callButton = document.getElementById("call");
 let hangupButton = document.getElementById("hangup");
 
-hangupButton.disabled = true;
-callButton.disabled = true;
-connectButton.onclick = connect;
+hangupButton.disabled = false;
+callButton.disabled = false;
+// connectButton.onclick = connect;
 callButton.onclick = call;
 hangupButton.onclick = hangup;
 
-function setupNewMemberHandler() {
+const joinChannel = () => {
+  channel.join()
+    .receive("ok", resp => {
+      console.log("Joined successfully", resp)
+    })
+    .receive("error", resp => {
+      console.log("Unable to join", resp)
+    })
+  channel.push("here")
+}
+const setUpNewMembers = () => {
   channel.on("new_member", ({member_id}) => {
+    console.log("NEW MEMBER");
     peerConnections[member_id] = setupPeerConnection()
   })
+
   channel.on("member_left", ({member_id}) => {
     delete peerConnections[member_id]
   })
-}
-
-function connect() {
-  console.log("Requesting local stream");
-  navigator.mediaDevices.getUserMedia({audio: false, video: true})
-    .then(gotStream)
-    .then(setupNewMemberHandler)
-    .catch(error => {
-      console.log("getUserMedia error: ", error);
-    });
 }
 
 function gotStream(stream) {
@@ -139,15 +140,12 @@ function gotLocalIceCandidate(event) {
 
 function gotRemoteIceCandidate(event) {
   callButton.disabled = true;
-  // console.log("ICE EVENT!!!!!")
-  // console.log(event)
   if (event.candidate && event.member_id) {
     // Messages do not have member_id on them.
-    console.log("I AM NEVER CALLED")
     if (!peerConnections[event.member_id]) {
       peerConnections[event.member_id] = setupPeerConnection()
     }
-    peerConnections[event.member_id].addIceCandidate(new RTCIceCandidate(event.candidate));
+    peerConnections[event.member_id].addIceCandidate(new RTCIceCandidate(event.candidate)).catch(console.log) ;
     console.log("Remote ICE candidate: \n " + event.candidate.candidate);
   }
 }
