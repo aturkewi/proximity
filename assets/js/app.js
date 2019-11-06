@@ -49,7 +49,7 @@ function setupNewMemberHandler() {
 
 function connect() {
   console.log("Requesting local stream");
-  navigator.mediaDevices.getUserMedia({audio: true, video: true})
+  navigator.mediaDevices.getUserMedia({audio: false, video: true})
     .then(gotStream)
     .then(setupNewMemberHandler)
     .catch(error => {
@@ -90,18 +90,18 @@ function setupPeerConnection() {
 function call() {
   callButton.disabled = true;
   console.log("Starting call");
-  Object.values(peerConnections).forEach(peerConnection => {
+  for(let [memberId, peerConnection] of Object.entries(peerConnections)) {
     peerConnection.createOffer((description) => {
-      debugger
-      gotLocalDescription(peerConnection, description)
+      gotLocalDescription(peerConnection, description, memberId)
     }, handleError)
-  })
+  }
 }
 
-function gotLocalDescription(peerConnection, description) {
+function gotLocalDescription(peerConnection, description, memberId) {
   peerConnection.setLocalDescription(description, () => {
-    channel.push("message", {
+    channel.push("sdp_info", {
       body: JSON.stringify({
+        "member_id": memberId,
         "sdp": peerConnection.localDescription
       })
     });
@@ -111,13 +111,13 @@ function gotLocalDescription(peerConnection, description) {
 
 function gotRemoteDescription(description) {
   console.log("Answer from remotePeerConnection: \n" + description.sdp);
-  if (!peerConnections[description.member_id]) {
-    peerConnections[description.member_id] = setupPeerConnection()
+  if (!peerConnections[description.sender_member_id]) {
+    peerConnections[description.sender_member_id] = setupPeerConnection()
   }
-  let peerConnection = peerConnections[description.member_id];
+  let peerConnection = peerConnections[description.sender_member_id];
   peerConnection.setRemoteDescription(new RTCSessionDescription(description.sdp));
-  peerConnection.createAnswer((description) => {
-      gotLocalDescription(peerConnection, description)
+  peerConnection.createAnswer((answer) => {
+      gotLocalDescription(peerConnection, answer, description.sender_member_id)
     }, handleError);
 }
 
