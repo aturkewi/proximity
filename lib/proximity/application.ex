@@ -9,7 +9,7 @@ defmodule Proximity.Application do
     # List all child processes to be supervised
     children = [
       # Start the Ecto repository
-      Proximity.Repo,
+#      Proximity.Repo,
       # Start the endpoint when the application starts
       ProximityWeb.Endpoint
       # Starts a worker by calling: Proximity.Worker.start_link(arg)
