@@ -139,7 +139,11 @@ function gotLocalIceCandidate(event) {
 
 function gotRemoteIceCandidate(event) {
   callButton.disabled = true;
+  // console.log("ICE EVENT!!!!!")
+  // console.log(event)
   if (event.candidate && event.member_id) {
+    // Messages do not have member_id on them.
+    console.log("I AM NEVER CALLED")
     if (!peerConnections[event.member_id]) {
       peerConnections[event.member_id] = setupPeerConnection()
     }
